@@ -27,6 +27,8 @@ jobs:
 
       - name: Remove Default Assets
         uses: actions/github-script@v3
+        env:
+          release_id: ${{ steps.create_release.outputs.release_id }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -35,19 +37,20 @@ jobs:
                   {
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    release_id: ${{ steps.create_release.outputs.release_id }}
+                    release_id: process.env.release_id
                   });
+            console.log('RELEASE: ' + JSON.stringify(release));
 
-            // Initiate deletion of draft prereleases
             for (const asset of release.assets)
             {
+              console.log('ASSET: ' + JSON.stringify(asset));
               console.log("Deleting default asset: " + asset.name);
               await github.repos.deleteReleaseAsset(
                 {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   asset_id: asset.id
-                })
+                });
             }
 
             console.log("Done.");
