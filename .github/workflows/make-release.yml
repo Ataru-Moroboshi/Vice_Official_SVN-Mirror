@@ -2,7 +2,7 @@ name: Make Release
 on:
   push:
     tags:
-    - '[0-9]+\.[0-9]+\.[0-9]+' # any tag that looks like a release version, ex. 3.6.0
+    - 'v[0-9]+\.[0-9]+\.[0-9]+' # any tag that looks like a release version, ex. v3.6.0
 concurrency: 
   group: Release Build
   cancel-in-progress: true
@@ -255,5 +255,22 @@ jobs:
           asset_path: ${{ steps.build.outputs.zip_path }}
           asset_name: ${{ steps.build.outputs.zip_name }}
           asset_content_type: application/zip
+  
+  publish_release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v3
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.repos.updateRelease(
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: ${{ needs.create_release.outputs.release_id }},
+                draft: false
+              });
   
             
