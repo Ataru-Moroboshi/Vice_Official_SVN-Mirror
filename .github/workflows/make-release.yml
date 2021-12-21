@@ -25,43 +25,43 @@ jobs:
           release_name: ${{ github.ref }}
           draft: true
   
-  remove_default_release_assets:
-    name: Remove Default Release Assets
-    runs-on: ubuntu-latest
-    needs: create_release
-    steps:
-      - uses: actions/github-script@v3
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            console.log('GET RELEASE: o: ' + context.repo.owner + ' repo: ' + context.repo.repo + ' rel: ' + '${{ needs.create_release.outputs.release_id }}');
-            let assets =
-              (await github.paginate(
-                github.repos.listReleaseAssets,
-                {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  release_id: '${{ needs.create_release.outputs.release_id }}'
-                }));
-            console.log('ASSETS: ' + JSON.stringify(assets));
+  # remove_default_release_assets: # the default release assets don't seem to get listed
+  #   name: Remove Default Release Assets
+  #   runs-on: ubuntu-latest
+  #   needs: create_release
+  #   steps:
+  #     - uses: actions/github-script@v3
+  #       with:
+  #         github-token: ${{secrets.GITHUB_TOKEN}}
+  #         script: |
+  #           console.log('GET RELEASE: o: ' + context.repo.owner + ' repo: ' + context.repo.repo + ' rel: ' + '${{ needs.create_release.outputs.release_id }}');
+  #           let assets =
+  #             (await github.paginate(
+  #               github.repos.listReleaseAssets,
+  #               {
+  #                 owner: context.repo.owner,
+  #                 repo: context.repo.repo,
+  #                 release_id: '${{ needs.create_release.outputs.release_id }}'
+  #               }));
+  #           console.log('ASSETS: ' + JSON.stringify(assets));
 
-            for (const asset of assets)
-            {
-              console.log("Deleting default asset: " + asset.name);
-              await github.repos.deleteReleaseAsset(
-                {
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  asset_id: asset.id
-                });
-            }
+  #           for (const asset of assets)
+  #           {
+  #             console.log("Deleting default asset: " + asset.name);
+  #             await github.repos.deleteReleaseAsset(
+  #               {
+  #                 owner: context.repo.owner,
+  #                 repo: context.repo.repo,
+  #                 asset_id: asset.id
+  #               });
+  #           }
 
-            console.log("Done.");
+  #           console.log("Done.");
 
   build_tarball:
     name: Build Tarball
     needs: create_release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     
     steps:
       - shell: bash
@@ -143,5 +143,107 @@ jobs:
           name: vice-pdf
           path: ${{ steps.build.outputs.pdf_path }}
           retention-days: 1
+  
+  build:
+    name: Build
+    needs: [create_release, build_doc]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+        - { msystem: MINGW64, arch: x86_64 }
+        - { msystem: MINGW32, arch: i686 }
+        ui: [ GTK3, SDL2 ]
+    steps:
+      - run: git config --global core.autocrlf input
+        shell: bash
+      
+      - name: Download Documentation
+        uses: actions/download-artifact@v2
+        with:
+          name: vice-pdf
+
+      - name: Download Tarball
+        uses: actions/download-artifact@v2
+        with:
+          name: vice-tarball
+      
+      - name: Unpack Source
+        shell: bash
+        run: |
+          tar xzvf vice-*.tar.gz
+          rm vice-*.tar.gz
+          cd vice-*
+          mv ../vice.pdf doc/
+
+      - name: Install GTK3 Dependencies if Applicable
+        if: ${{ matrix.ui == 'GTK3' }}
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.arch.msystem }}
+          update: true
+          install: >-
+            git
+            base-devel
+            mingw-w64-${{ matrix.arch.arch }}-toolchain
+            zip
+            subversion
+            git
+            mingw-w64-${{ matrix.arch.arch }}-pkg-config
+            mingw-w64-${{ matrix.arch.arch }}-ntldd
+            mingw-w64-${{ matrix.arch.arch }}-glew
+            mingw-w64-${{ matrix.arch.arch }}-giflib
+            mingw-w64-${{ matrix.arch.arch }}-lame
+            mingw-w64-${{ matrix.arch.arch }}-libvorbis
+            mingw-w64-${{ matrix.arch.arch }}-flac
+            mingw-w64-${{ matrix.arch.arch }}-icoutils
+            mingw-w64-${{ matrix.arch.arch }}-ffmpeg
+            mingw-w64-${{ matrix.arch.arch }}-gtk3
+      
+      - name: Install SDL2 Dependencies if Applicable
+        if: ${{ matrix.ui == 'SDL2' }}
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.arch.msystem }}
+          update: true
+          install: >-
+            git
+            base-devel
+            mingw-w64-${{ matrix.arch.arch }}-toolchain
+            zip
+            subversion
+            git
+            mingw-w64-${{ matrix.arch.arch }}-pkg-config
+            mingw-w64-${{ matrix.arch.arch }}-ntldd
+            mingw-w64-${{ matrix.arch.arch }}-glew
+            mingw-w64-${{ matrix.arch.arch }}-giflib
+            mingw-w64-${{ matrix.arch.arch }}-lame
+            mingw-w64-${{ matrix.arch.arch }}-libvorbis
+            mingw-w64-${{ matrix.arch.arch }}-flac
+            mingw-w64-${{ matrix.arch.arch }}-icoutils
+            mingw-w64-${{ matrix.arch.arch }}-ffmpeg
+            mingw-w64-${{ matrix.arch.arch }}-SDL2
+            mingw-w64-${{ matrix.arch.arch }}-SDL2_image
+
+      - name: Build
+        id: build
+        shell: msys2 {0}
+        run: |
+          cd vice-*
+          MINGW_INSTALLS=${{ matrix.arch.msystem }} ./build/msys2/github-actions-build.sh ${{ matrix.ui }} "$(echo "${{ github.ref }}" | sed 's,.*/,,')"
+          echo ::set-output name=zip_path::$(cygpath -w -a *.zip)
+          echo ::set-output name=zip_name::$(basename *.zip)
+
+      - name: Upload
+        id: upload
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.build.outputs.zip_path }}
+          asset_name: ${{ steps.build.outputs.zip_name }}
+          asset_content_type: application/zip
   
             
