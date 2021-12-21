@@ -102,12 +102,13 @@ jobs:
           ./autogen.sh
           ./configure --enable-headlessui --enable-html-docs --without-pulse --without-alsa --without-png
           make -j2
+          echo ::set-output name=pdf_path::$(echo $(pwd)/doc/vice.pdf)
 
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: vice-pdf
-          path: vice/doc/vice.pdf
+          path: ${{ steps.build.outputs.pdf_path }}
           retention-days: 1
   
             
