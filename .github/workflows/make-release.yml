@@ -27,18 +27,16 @@ jobs:
 
       - name: Remove Default Assets
         uses: actions/github-script@v3
-        env:
-          release_id: ${{ steps.create_release.outputs.release_id }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            console.log('GET RELEASE: o: ' + context.repo.owner + ' repo: ' + context.repo.repo + ' rel: ' + process.env.release_id);
+            console.log('GET RELEASE: o: ' + context.repo.owner + ' repo: ' + context.repo.repo + ' rel: ' + '${{ steps.create_release.outputs.release_id }}');
             let release =
                 await github.repos.getRelease(
                   {
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    release_id: process.env.release_id
+                    release_id: '${{ steps.create_release.outputs.release_id }}'
                   });
             console.log('RELEASE: ' + JSON.stringify(release));
 
