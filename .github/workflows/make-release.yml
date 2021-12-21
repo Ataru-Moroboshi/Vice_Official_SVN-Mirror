@@ -25,6 +25,33 @@ jobs:
           release_name: ${{ github.ref }}
           draft: true
 
+      - name: Remove Default Assets
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            let release =
+                await github.repos.getRelease(
+                  {
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    release_id: ${{ steps.create_release.outputs.release_id }}
+                  });
+
+            // Initiate deletion of draft prereleases
+            for (const asset of release.assets)
+            {
+              console.log("Deleting default asset: " + asset.name);
+              await github.repos.deleteReleaseAsset(
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id
+                })
+            }
+
+            console.log("Done.");
+
   build_tarball:
     name: Build Tarball
     needs: create_release
@@ -72,7 +99,7 @@ jobs:
           asset_content_type: application/gzip
 
   build_doc:
-    name: Test Headless, Build Documentation
+    name: Build Headless, Upload Documentation
     needs: build_tarball
     runs-on: ubuntu-20.04
     
