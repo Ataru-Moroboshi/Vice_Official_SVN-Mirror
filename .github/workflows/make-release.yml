@@ -50,8 +50,8 @@ jobs:
           ./autogen.sh
           ./configure --with-resid --disable-pdf-docs --enable-headlessui --without-pulse --without-alsa --without-png
           make dist
-          echo ::set-output name=tarball_path::$($(pwd)/vice/vice-*.tar.gz)
-          echo ::set-output name=tarball_name::$(basename vice/vice-*.tar.gz)
+          echo ::set-output name=tarball_path::$($(pwd)/vice-*.tar.gz)
+          echo ::set-output name=tarball_name::$(basename vice-*.tar.gz)
 
       - name: Upload Artifact Tarball
         uses: actions/upload-artifact@v2
