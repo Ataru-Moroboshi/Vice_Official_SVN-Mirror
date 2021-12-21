@@ -54,6 +54,10 @@ SDL2)
 esac
 
 ./autogen.sh
-./configure $ARGS SVN_REVISION_OVERRIDE=$(echo "$2" | sed 's/^r//') || ( echo -e "\n**** CONFIGURE FAILED ****\n" ; cat config.log ; exit 1 )
+if [ -z "$2" ]; then
+    ./configure $ARGS || ( echo -e "\n**** CONFIGURE FAILED ****\n" ; cat config.log ; exit 1 )
+else
+    ./configure $ARGS SVN_REVISION_OVERRIDE=$(echo "$2" | sed 's/^r//') || ( echo -e "\n**** CONFIGURE FAILED ****\n" ; cat config.log ; exit 1 )
+fi
 make -j $(( $NUMBER_OF_PROCESSORS )) -s
 make bindistzip

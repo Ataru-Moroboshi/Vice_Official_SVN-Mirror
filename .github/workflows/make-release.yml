@@ -159,6 +159,15 @@ jobs:
       - run: git config --global core.autocrlf input
         shell: bash
       
+      - name: Checkout Source
+        uses: actions/checkout@v2
+      
+      - name: Extract Github Actions Build Script
+        shell: bash
+        run: |
+          mv vice/build/msys2/github-actions-build.sh .
+          rm -rf vice
+      
       - name: Download Documentation
         uses: actions/download-artifact@v2
         with:
@@ -169,13 +178,15 @@ jobs:
         with:
           name: vice-tarball
       
-      - name: Unpack Source
+      - name: Unpack Tarball Source
         shell: bash
         run: |
           tar xzvf vice-*.tar.gz
           rm vice-*.tar.gz
-          cd vice-*
-          mv ../vice.pdf doc/
+          mv vice-* vice
+          mv vice.pdf vice/doc/
+          mkdir -p vice/build/msys2/
+          mv github-actions-build.sh vice/build/msys2/
 
       - name: Install GTK3 Dependencies if Applicable
         if: ${{ matrix.ui == 'GTK3' }}
@@ -230,8 +241,7 @@ jobs:
         id: build
         shell: msys2 {0}
         run: |
-          cd vice-*
-          MINGW_INSTALLS=${{ matrix.arch.msystem }} ./build/msys2/github-actions-build.sh ${{ matrix.ui }} "$(echo "${{ github.ref }}" | sed 's,.*/,,')"
+          MINGW_INSTALLS=${{ matrix.arch.msystem }} ./vice/build/msys2/github-actions-build.sh ${{ matrix.ui }} ""
           echo ::set-output name=zip_path::$(cygpath -w -a *.zip)
           echo ::set-output name=zip_name::$(basename *.zip)
 
