@@ -99,7 +99,6 @@ jobs:
         shell: bash
         run: |
           cd vice-*/
-          cd vice
           ./autogen.sh
           ./configure --enable-headlessui --enable-html-docs --without-pulse --without-alsa --without-png
           make -j2
