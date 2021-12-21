@@ -35,18 +35,18 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             console.log('GET RELEASE: o: ' + context.repo.owner + ' repo: ' + context.repo.repo + ' rel: ' + '${{ needs.create_release.outputs.release_id }}');
-            let release =
-                await github.repos.getRelease(
-                  {
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    release_id: '${{ needs.create_release.outputs.release_id }}'
-                  });
-            console.log('RELEASE: ' + JSON.stringify(release));
+            let assets =
+              (await github.paginate(
+                github.repos.listReleaseAssets,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: '${{ needs.create_release.outputs.release_id }}'
+                }));
+            console.log('ASSETS: ' + JSON.stringify(assets));
 
-            for (const asset of release.assets)
+            for (const asset of assets)
             {
-              console.log('ASSET: ' + JSON.stringify(asset));
               console.log("Deleting default asset: " + asset.name);
               await github.repos.deleteReleaseAsset(
                 {
